@@ -67,6 +67,21 @@ defaults:
         mkdir artifacts
 
 jobs:
+  full:
+    parallelism: 1
+    working_directory: /app
+    docker:
+      - image: docker:17.06.1-ce
+    steps:
+      - checkout
+      - run:
+          name: generate extension-config.tar.gz
+          command: |-
+            perl Makefile.PL
+            make extension-config.tar.gz
+      - run:
+          name: build full docker container
+          command: docker build -t full Dockerfile.full .
   build_info:
     parallelism: 1
     working_directory: /app
@@ -265,6 +280,10 @@ workflows:
   version: 2
   main:
     jobs:
+      - full:
+        filters:
+          tags:
+            only: /^base-/
       - build_info:
           filters: *main_filters
       - build:

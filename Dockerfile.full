@@ -1,0 +1,32 @@
+FROM perl:5.28.0-slim AS base
+
+WORKDIR /build
+
+RUN apt-get update && \
+    apt-get install -y build-essential libcairo-dev curl libssl1.0-dev \
+                       zlib1g-dev openssl git cmake libgd-dev libmariadbclient-dev
+COPY extension-config.tar.gz Makefile.PL gen-cpanfile.pl Bugzilla.pm /build/
+RUN tar -zxvf extension-config.tar.gz
+RUN cpanm --notest Module::CPANfile App::cpm
+RUN perl Makefile.PL
+RUN make cpanfile
+RUN cpm install
+RUN rm -vfr local/man
+
+FROM perl:5.28.0-slim
+
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y \
+        libssl1.0.2 libpangoft2-1.0-0 libatk1.0-0 \
+        libexpat1 libfontconfig1 libglib2.0-0 libgd3 \
+        libpangocairo-1.0-0 libmariadbclient18 \
+        libgtk2.0-0 libgtk2.0-0 && \
+    find local -name '*.pod' \
+               -exec rm '{}' \;
+
+WORKDIR /app/
+COPY . /app
+COPY --from=base /build/local /app/local/
+
+CMD /bin/bash
